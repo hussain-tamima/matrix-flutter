@@ -1773,8 +1773,12 @@ class MatrixStore extends ChangeNotifier {
 
   void _onStatus(SyncStatusUpdate update) {
     if (update.status == SyncStatus.error) {
-      _online = false;
       _syncing = false;
+      // The SDK abandons its first sync after 10s and retries. That timeout
+      // is not a dropped connection.
+      if (update.error?.exception is! TimeoutException) {
+        _online = false;
+      }
       notifyListeners();
     } else if (update.status == SyncStatus.finished) {
       _online = true;
