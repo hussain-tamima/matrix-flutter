@@ -6,6 +6,7 @@ import 'package:element_x/core/local_storage/session_store.dart';
 import 'package:element_x/core/matrix/matrix_call_media.dart';
 import 'package:element_x/core/matrix/matrix_database.dart';
 import 'package:element_x/core/matrix/matrix_models.dart';
+import 'package:element_x/core/matrix/stale_room.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
@@ -304,7 +305,23 @@ class MatrixStore extends ChangeNotifier {
     if (room == null) {
       return;
     }
-    final participants = await room.requestParticipants();
+    final List<User> participants;
+    try {
+      participants = await room.requestParticipants();
+    } on MatrixException catch (error) {
+      final droppedRoomId = queueRoomMissingOnServer(client, error);
+      if (droppedRoomId == null) {
+        rethrow;
+      }
+      if (droppedRoomId == roomId) {
+        _timelines.remove(roomId)?.cancelSubscriptions();
+        _events.remove(roomId);
+        _members.remove(roomId);
+      }
+      _rebuildRooms();
+      notifyListeners();
+      return;
+    }
     _members[roomId] = [
       for (final user in participants)
         RoomMember(
