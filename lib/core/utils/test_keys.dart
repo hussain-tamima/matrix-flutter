@@ -13,4 +13,6 @@ abstract final class TestKeys {
   static const signOut = 'sign-out';
 
   static String roomTile(String id) => 'room-tile-$id';
+  static String acceptInvite(String id) => 'accept-invite-$id';
+  static String declineInvite(String id) => 'decline-invite-$id';
 }

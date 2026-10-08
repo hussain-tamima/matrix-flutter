@@ -74,8 +74,17 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
                               final room = state.rooms[index];
                               return RoomTile(
                                 room: room,
-                                onTap: () =>
-                                    context.push(RoutePaths.room(room.id)),
+                                onTap: () => context.push(
+                                  room.isSpace
+                                      ? RoutePaths.space(room.id)
+                                      : RoutePaths.room(room.id),
+                                ),
+                                onAccept: () => context
+                                    .read<HomeCubit>()
+                                    .acceptInvite(room.id),
+                                onDecline: () => context
+                                    .read<HomeCubit>()
+                                    .declineInvite(room.id),
                               );
                             },
                           ),

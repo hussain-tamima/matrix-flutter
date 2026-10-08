@@ -38,6 +38,8 @@ class MatrixStore extends ChangeNotifier {
 
   List<MatrixRoom> _rooms = [];
   List<MatrixRoom> _spaces = [];
+  final Map<String, DateTime> _joinedAt = {};
+  final Set<String> _acceptedOnHome = {};
   List<MatrixRoom> _directory = [];
   MatrixPreferences _local = const MatrixPreferences();
   String _displayName = '';
@@ -637,8 +639,29 @@ class MatrixStore extends ChangeNotifier {
   }
 
   Future<String> joinRoom(String roomIdOrAlias) async {
+    final existing = client.getRoomById(roomIdOrAlias);
+    final directPartner = existing == null
+        ? null
+        : _directInvitePartner(existing);
     final roomId = await client.joinRoom(roomIdOrAlias);
-    await client.waitForRoomInSync(roomId, join: true);
+    _joinedAt[roomId] = DateTime.now();
+    _acceptedOnHome.add(roomId);
+    if (directPartner != null) {
+      try {
+        await (client.getRoomById(roomId) ?? Room(id: roomId, client: client))
+            .addToDirectChat(directPartner);
+      } catch (error, stackTrace) {
+        Logs().w(
+          'Could not keep the joined room as a direct chat',
+          error,
+          stackTrace,
+        );
+      }
+    }
+    final joined = client.getRoomById(roomId);
+    if (joined == null || joined.membership != Membership.join) {
+      await client.waitForRoomInSync(roomId, join: true);
+    }
     _rebuildRooms();
     notifyListeners();
     return roomId;
@@ -1829,6 +1852,7 @@ class MatrixStore extends ChangeNotifier {
         );
       }
       final last = room.lastEvent;
+      final invited = room.membership == Membership.invite;
       final model = MatrixRoom(
         id: room.id,
         name: room.getLocalizedDisplayname(),
@@ -1839,22 +1863,87 @@ class MatrixStore extends ChangeNotifier {
         isEncrypted: room.encrypted,
         isFavourite: room.isFavourite,
         isPublic: room.joinRules == JoinRules.public,
+        isInvited: invited,
+        invitedBy: invited ? _invitedBy(room) : '',
         spaceId: spaceIds[room.id],
         unreadCount: room.notificationCount,
         lastMessage: _lastMessage(last),
-        lastActivity:
-            last?.originServerTs ?? DateTime.fromMillisecondsSinceEpoch(0),
+        lastActivity: _roomActivity(room, last),
         heroUserId: hero,
         memberIds: [?client.userID, ?hero],
       );
       if (room.isSpace) {
         spaces.add(model);
-      } else {
+      }
+      // Joined spaces normally live in the drawer. A room the user just
+      // accepted has to stay on the home list, or Accept looks like it failed.
+      if (!room.isSpace || invited || _acceptedOnHome.contains(room.id)) {
         mapped.add(model);
       }
     }
     _rooms = mapped;
     _spaces = spaces;
+  }
+
+  /// Invite sync has no timeline event, so `lastEvent` is usually null.
+  /// The SDK treats that as "now" instead of the epoch.
+  DateTime _roomActivity(Room room, Event? last) {
+    final stamp = last?.originServerTs;
+    final joinedAt = _joinedAt[room.id];
+    if (stamp != null && stamp.millisecondsSinceEpoch > 0) {
+      if (joinedAt != null && joinedAt.isAfter(stamp)) {
+        return joinedAt;
+      }
+      return stamp;
+    }
+    if (joinedAt != null) {
+      return joinedAt;
+    }
+    if (room.membership == Membership.invite) {
+      return room.latestEventReceivedTime;
+    }
+    return DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
+  /// Direct invites are only marked `is_direct` while membership is invite.
+  /// After join, People filter uses `m.direct`, which the invitee does not have yet.
+  String? _directInvitePartner(Room room) {
+    if (room.membership != Membership.invite) {
+      return null;
+    }
+    final userId = client.userID;
+    if (userId == null) {
+      return null;
+    }
+    final invitation = room.getState(EventTypes.RoomMember, userId);
+    if (invitation?.content['is_direct'] != true) {
+      return null;
+    }
+    final senderId = invitation?.senderId;
+    if (senderId == null || senderId.isEmpty || senderId == userId) {
+      return null;
+    }
+    return senderId;
+  }
+
+  String _invitedBy(Room room) {
+    final userId = client.userID;
+    if (userId == null) {
+      return '';
+    }
+    final membership = room.getState(EventTypes.RoomMember, userId);
+    final senderId = membership?.senderId;
+    if (senderId == null || senderId.isEmpty || senderId == userId) {
+      return '';
+    }
+    final sender = room.getState(EventTypes.RoomMember, senderId);
+    if (sender != null) {
+      final name = sender.asUser(room).calcDisplayname();
+      if (name.isNotEmpty) {
+        return name;
+      }
+    }
+    return senderId.localpart ?? senderId;
   }
 
   List<TimelineEvent> _mapEvents(List<Event> events, Room room) {

@@ -46,6 +46,16 @@ class HomeCubit extends Cubit<HomeState> {
     );
   }
 
+  Future<void> acceptInvite(String roomId) async {
+    await _store.joinRoom(roomId);
+    final shown = state.rooms.any((room) => room.id == roomId);
+    if (!shown && state.filter != RoomFilter.all) {
+      setFilter(RoomFilter.all);
+    }
+  }
+
+  Future<void> declineInvite(String roomId) => _store.leaveRoom(roomId);
+
   @override
   Future<void> close() {
     _store.removeListener(_listener);

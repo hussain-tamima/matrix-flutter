@@ -33,6 +33,12 @@ class MessagesCubit extends Cubit<MessagesState> {
       emit(const MessagesState(missing: true));
       return;
     }
+    if (room.isInvited) {
+      emit(
+        MessagesState(room: room, events: const [], recording: state.recording),
+      );
+      return;
+    }
     _store.ensureTimeline(roomId);
     _repo.markRead(roomId);
     final events = _repo.timeline(roomId);

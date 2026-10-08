@@ -116,9 +116,8 @@ class HomeScreen extends StatelessWidget {
                               ),
                               _RoomFilterBar(
                                 selected: state.filter,
-                                onSelected: (filter) => context
-                                    .read<HomeCubit>()
-                                    .setFilter(filter),
+                                onSelected: (filter) =>
+                                    context.read<HomeCubit>().setFilter(filter),
                               ),
                               const SizedBox(height: RopSpacing.xs),
                               Expanded(
@@ -131,8 +130,7 @@ class HomeScreen extends StatelessWidget {
                                     child: state.syncing && state.rooms.isEmpty
                                         ? const Center(
                                             key: ValueKey('loading'),
-                                            child:
-                                                CircularProgressIndicator(),
+                                            child: CircularProgressIndicator(),
                                           )
                                         : state.rooms.isEmpty
                                         ? _EmptyRooms(
@@ -206,10 +204,7 @@ class _GlassRoomPanel extends StatelessWidget {
 }
 
 class _RoomFilterBar extends StatelessWidget {
-  const _RoomFilterBar({
-    required this.selected,
-    required this.onSelected,
-  });
+  const _RoomFilterBar({required this.selected, required this.onSelected});
 
   final RoomFilter selected;
   final ValueChanged<RoomFilter> onSelected;
@@ -318,21 +313,14 @@ class _PersonGlassCard extends StatelessWidget {
             ),
           ],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(15),
-          child: child,
-        ),
+        child: ClipRRect(borderRadius: BorderRadius.circular(15), child: child),
       ),
     );
   }
 }
 
 class _AnimatedRoomList extends StatelessWidget {
-  const _AnimatedRoomList({
-    super.key,
-    required this.rooms,
-    required this.rop,
-  });
+  const _AnimatedRoomList({super.key, required this.rooms, required this.rop});
 
   final List<MatrixRoom> rooms;
   final RopTheme rop;
@@ -349,7 +337,13 @@ class _AnimatedRoomList extends StatelessWidget {
           rop: rop,
           child: RoomTile(
             room: room,
-            onTap: () => context.push(RoutePaths.room(room.id)),
+            onTap: () => context.push(
+              room.isSpace
+                  ? RoutePaths.space(room.id)
+                  : RoutePaths.room(room.id),
+            ),
+            onAccept: () => context.read<HomeCubit>().acceptInvite(room.id),
+            onDecline: () => context.read<HomeCubit>().declineInvite(room.id),
           ),
         );
         if (reduceMotion) return tile;

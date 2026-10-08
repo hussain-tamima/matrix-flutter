@@ -29,6 +29,8 @@ class MatrixRoom extends Equatable {
     this.isEncrypted = true,
     this.isFavourite = false,
     this.isPublic = false,
+    this.isInvited = false,
+    this.invitedBy = '',
     this.spaceId,
     this.unreadCount = 0,
     this.lastMessage = '',
@@ -45,6 +47,8 @@ class MatrixRoom extends Equatable {
   final bool isEncrypted;
   final bool isFavourite;
   final bool isPublic;
+  final bool isInvited;
+  final String invitedBy;
   final String? spaceId;
   final int unreadCount;
   final String lastMessage;
@@ -61,6 +65,8 @@ class MatrixRoom extends Equatable {
     bool? isEncrypted,
     bool? isFavourite,
     bool? isPublic,
+    bool? isInvited,
+    String? invitedBy,
     String? spaceId,
     int? unreadCount,
     String? lastMessage,
@@ -78,6 +84,8 @@ class MatrixRoom extends Equatable {
       isEncrypted: isEncrypted ?? this.isEncrypted,
       isFavourite: isFavourite ?? this.isFavourite,
       isPublic: isPublic ?? this.isPublic,
+      isInvited: isInvited ?? this.isInvited,
+      invitedBy: invitedBy ?? this.invitedBy,
       spaceId: spaceId ?? this.spaceId,
       unreadCount: unreadCount ?? this.unreadCount,
       lastMessage: lastMessage ?? this.lastMessage,
@@ -98,6 +106,8 @@ class MatrixRoom extends Equatable {
     isEncrypted,
     isFavourite,
     isPublic,
+    isInvited,
+    invitedBy,
     spaceId,
     unreadCount,
     lastMessage,

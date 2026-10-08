@@ -60,7 +60,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
         return Scaffold(
           appBar: AppBar(
             title: InkWell(
-              onTap: () => context.push(RoutePaths.roomDetails(room.id)),
+              onTap: room.isInvited
+                  ? null
+                  : () => context.push(RoutePaths.roomDetails(room.id)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -74,21 +76,23 @@ class _MessagesScreenState extends State<MessagesScreen> {
               ),
             ),
             actions: [
-              IconButton(
-                tooltip: 'preview_voice_call'.tr(),
-                onPressed: () => _startCall(context, room.id, video: false),
-                icon: const Icon(Icons.call_outlined),
-              ),
-              IconButton(
-                tooltip: 'preview_video_call'.tr(),
-                onPressed: () => _startCall(context, room.id, video: true),
-                icon: const Icon(Icons.videocam_outlined),
-              ),
-              IconButton(
-                tooltip: 'pins'.tr(),
-                onPressed: () => context.push(RoutePaths.roomPins(room.id)),
-                icon: const Icon(Icons.push_pin_outlined),
-              ),
+              if (!room.isInvited) ...[
+                IconButton(
+                  tooltip: 'preview_voice_call'.tr(),
+                  onPressed: () => _startCall(context, room.id, video: false),
+                  icon: const Icon(Icons.call_outlined),
+                ),
+                IconButton(
+                  tooltip: 'preview_video_call'.tr(),
+                  onPressed: () => _startCall(context, room.id, video: true),
+                  icon: const Icon(Icons.videocam_outlined),
+                ),
+                IconButton(
+                  tooltip: 'pins'.tr(),
+                  onPressed: () => context.push(RoutePaths.roomPins(room.id)),
+                  icon: const Icon(Icons.push_pin_outlined),
+                ),
+              ],
             ],
           ),
           body: Column(
@@ -143,7 +147,17 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   ],
                 ),
               ),
-              if (state.recording)
+              if (room.isInvited)
+                Padding(
+                  padding: const EdgeInsets.all(RopSpacing.md),
+                  child: Text(
+                    room.invitedBy.isEmpty
+                        ? 'invite_pending'.tr()
+                        : 'invite_by'.tr(args: [room.invitedBy]),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              if (state.recording && !room.isInvited)
                 ListTile(
                   leading: const Icon(Icons.mic),
                   title: Text('recording'.tr()),
@@ -162,54 +176,55 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     ),
                   ),
                 ),
-              ColoredBox(
-                color: rop.surface,
-                child: SafeArea(
-                  top: false,
-                  child: Padding(
-                    padding: const EdgeInsets.all(RopSpacing.xs),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          tooltip: 'attach'.tr(),
-                          onPressed: () => _attachments(context),
-                          icon: const Icon(Icons.add_circle_outline),
-                        ),
-                        Expanded(
-                          child: TextField(
-                            key: const Key(TestKeys.composer),
-                            controller: _composer,
-                            decoration: InputDecoration(
-                              hintText: 'message_hint'.tr(),
-                            ),
-                            textInputAction: TextInputAction.send,
-                            onSubmitted: _send,
+              if (!room.isInvited)
+                ColoredBox(
+                  color: rop.surface,
+                  child: SafeArea(
+                    top: false,
+                    child: Padding(
+                      padding: const EdgeInsets.all(RopSpacing.xs),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            tooltip: 'attach'.tr(),
+                            onPressed: () => _attachments(context),
+                            icon: const Icon(Icons.add_circle_outline),
                           ),
-                        ),
-                        DecoratedBox(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              begin: const Alignment(-0.5, -1),
-                              end: const Alignment(0.5, 1),
-                              colors: [
-                                rop.sendGradientStart,
-                                rop.sendGradientEnd,
-                              ],
+                          Expanded(
+                            child: TextField(
+                              key: const Key(TestKeys.composer),
+                              controller: _composer,
+                              decoration: InputDecoration(
+                                hintText: 'message_hint'.tr(),
+                              ),
+                              textInputAction: TextInputAction.send,
+                              onSubmitted: _send,
                             ),
                           ),
-                          child: IconButton(
-                            key: const Key(TestKeys.send),
-                            tooltip: 'send'.tr(),
-                            onPressed: () => _send(_composer.text),
-                            icon: Icon(Icons.send, color: rop.textOnPrimary),
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                begin: const Alignment(-0.5, -1),
+                                end: const Alignment(0.5, 1),
+                                colors: [
+                                  rop.sendGradientStart,
+                                  rop.sendGradientEnd,
+                                ],
+                              ),
+                            ),
+                            child: IconButton(
+                              key: const Key(TestKeys.send),
+                              tooltip: 'send'.tr(),
+                              onPressed: () => _send(_composer.text),
+                              icon: Icon(Icons.send, color: rop.textOnPrimary),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         );
@@ -233,9 +248,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
       if (!context.mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(matrixError(error))),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(matrixError(error))));
     }
   }
 

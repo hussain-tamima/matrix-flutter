@@ -39,7 +39,15 @@ class HomeRepoImpl implements HomeRepo {
       };
       return matchesQuery && matchesFilter;
     }).toList();
-    rooms.sort((a, b) => b.lastActivity.compareTo(a.lastActivity));
+    rooms.sort(compareHomeRooms);
     return rooms;
   }
+}
+
+/// Invites stay above joined rooms. Activity only orders rooms in the same group.
+int compareHomeRooms(MatrixRoom a, MatrixRoom b) {
+  if (a.isInvited != b.isInvited) {
+    return a.isInvited ? -1 : 1;
+  }
+  return b.lastActivity.compareTo(a.lastActivity);
 }
