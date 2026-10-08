@@ -500,6 +500,8 @@ class MatrixStore extends ChangeNotifier {
           ),
         };
         await room.sendFileEvent(file, threadRootEventId: threadRootId);
+      case TimelineEventKind.call:
+        throw Exception('Call logs cannot be sent as messages');
     }
     await ensureTimeline(roomId);
   }
@@ -547,6 +549,8 @@ class MatrixStore extends ChangeNotifier {
       case TimelineEventKind.voice:
         final file = await event.downloadAndDecryptAttachment();
         await destination.sendFileEvent(file);
+      case TimelineEventKind.call:
+        throw Exception('This message cannot be forwarded');
     }
     await ensureTimeline(destinationRoomId);
   }
@@ -1362,11 +1366,7 @@ class MatrixStore extends ChangeNotifier {
     await _answerNegotiateOffer(roomId, callId, sdp);
   }
 
-  Future<void> _answerNegotiateOffer(
-    String roomId,
-    String callId,
-    String sdp,
-  ) {
+  Future<void> _answerNegotiateOffer(String roomId, String callId, String sdp) {
     final previous = _negotiateChain ?? Future<void>.value();
     final task = previous.catchError((Object _) {}).then((_) async {
       if (_callId != callId || _callMedia == null) {
@@ -1949,8 +1949,17 @@ class MatrixStore extends ChangeNotifier {
   List<TimelineEvent> _mapEvents(List<Event> events, Room room) {
     final pinned = room.pinnedEventIds.toSet();
     final mapped = <TimelineEvent>[];
+    final calls = <String, List<Event>>{};
     for (final event in events) {
       if (event.relationshipType == RelationshipTypes.edit) {
+        continue;
+      }
+      if (event.type.startsWith('m.call.')) {
+        final callId = event.content.tryGet<String>('call_id');
+        if (callId == null || callId.isEmpty) {
+          continue;
+        }
+        (calls[callId] ??= []).add(event);
         continue;
       }
       final kind = _kind(event);
@@ -1978,8 +1987,112 @@ class MatrixStore extends ChangeNotifier {
         ),
       );
     }
+    for (final group in calls.values) {
+      final log = _callLog(group, room, pinned);
+      if (log != null) {
+        mapped.add(log);
+      }
+    }
     mapped.sort((a, b) => a.timestamp.compareTo(b.timestamp));
     return mapped;
+  }
+
+  TimelineEvent? _callLog(List<Event> events, Room room, Set<String> pinned) {
+    Event? invite;
+    Event? answer;
+    Event? hangup;
+    Event? reject;
+    for (final event in events) {
+      switch (event.type) {
+        case 'm.call.invite':
+          invite ??= event;
+        case 'm.call.answer':
+          answer ??= event;
+        case 'm.call.hangup':
+          if (hangup == null ||
+              event.originServerTs.isAfter(hangup.originServerTs)) {
+            hangup = event;
+          }
+        case 'm.call.reject':
+          reject ??= event;
+      }
+    }
+    Event? earliest;
+    for (final event in [answer, hangup, reject]) {
+      if (event == null) {
+        continue;
+      }
+      if (earliest == null ||
+          event.originServerTs.isBefore(earliest.originServerTs)) {
+        earliest = event;
+      }
+    }
+    final anchor = invite ?? earliest;
+    if (anchor == null) {
+      return null;
+    }
+    final video = invite != null && _isVideoCallInvite(invite);
+    final kindLabel = video
+        ? 'preview_video_call'.tr()
+        : 'preview_voice_call'.tr();
+    final outcome = _callOutcome(
+      answer: answer,
+      hangup: hangup,
+      reject: reject,
+    );
+    return TimelineEvent(
+      id: anchor.eventId,
+      roomId: room.id,
+      senderId: anchor.senderId,
+      body: outcome == null ? kindLabel : '$kindLabel · $outcome',
+      timestamp: anchor.originServerTs,
+      kind: TimelineEventKind.call,
+      isPinned: pinned.contains(anchor.eventId),
+      video: video,
+    );
+  }
+
+  String? _callOutcome({
+    required Event? answer,
+    required Event? hangup,
+    required Event? reject,
+  }) {
+    if (answer != null && hangup != null) {
+      return 'call_log_duration'.tr(
+        args: [
+          _formatCallDuration(
+            hangup.originServerTs.difference(answer.originServerTs),
+          ),
+        ],
+      );
+    }
+    if (answer != null) {
+      return null;
+    }
+    if (reject != null) {
+      return 'call_log_declined'.tr();
+    }
+    if (hangup == null) {
+      return null;
+    }
+    final reason = hangup.content.tryGet<String>('reason');
+    return switch (reason) {
+      'invite_timeout' => 'call_log_missed'.tr(),
+      'user_busy' => 'call_log_declined'.tr(),
+      'user_hangup' => 'call_log_cancelled'.tr(),
+      _ => 'call_log_cancelled'.tr(),
+    };
+  }
+
+  String _formatCallDuration(Duration duration) {
+    final seconds = duration.inSeconds < 0 ? 0 : duration.inSeconds;
+    final hours = seconds ~/ 3600;
+    final minutes = (seconds % 3600) ~/ 60;
+    final remainder = (seconds % 60).toString().padLeft(2, '0');
+    if (hours > 0) {
+      return '$hours:${minutes.toString().padLeft(2, '0')}:$remainder';
+    }
+    return '$minutes:$remainder';
   }
 
   TimelineEventKind? _kind(Event event) {

@@ -1,6 +1,15 @@
 import 'package:equatable/equatable.dart';
 
-enum TimelineEventKind { text, image, poll, location, voice, notice, file }
+enum TimelineEventKind {
+  text,
+  image,
+  poll,
+  location,
+  voice,
+  notice,
+  file,
+  call,
+}
 
 class MatrixUser extends Equatable {
   const MatrixUser({
@@ -157,6 +166,7 @@ class TimelineEvent extends Equatable {
     this.pollVotes = const {},
     this.myPollVote,
     this.fileName,
+    this.video = false,
   });
 
   final String id;
@@ -171,6 +181,7 @@ class TimelineEvent extends Equatable {
   final Map<String, int> pollVotes;
   final String? myPollVote;
   final String? fileName;
+  final bool video;
 
   TimelineEvent copyWith({
     bool? isPinned,
@@ -190,6 +201,7 @@ class TimelineEvent extends Equatable {
       pollVotes: pollVotes ?? this.pollVotes,
       myPollVote: myPollVote ?? this.myPollVote,
       fileName: fileName,
+      video: video,
     );
   }
 
@@ -207,6 +219,7 @@ class TimelineEvent extends Equatable {
     pollVotes,
     myPollVote,
     fileName,
+    video,
   ];
 }
 

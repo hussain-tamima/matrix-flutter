@@ -62,11 +62,30 @@ class MessageBubble extends StatelessWidget {
                       ?.copyWith(color: foreground),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  event.body,
-                  style: Theme.of(context).textTheme.bodyMedium
-                      ?.copyWith(color: foreground),
-                ),
+                if (event.kind == TimelineEventKind.call)
+                  Row(
+                    children: [
+                      Icon(
+                        event.video ? Icons.videocam : Icons.call,
+                        color: foreground,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          event.body,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: foreground),
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Text(
+                    event.body,
+                    style: Theme.of(context).textTheme.bodyMedium
+                        ?.copyWith(color: foreground),
+                  ),
                 if (event.kind == TimelineEventKind.image)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
