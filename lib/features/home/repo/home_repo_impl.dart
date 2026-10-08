@@ -1,5 +1,6 @@
 import 'package:element_x/core/auth/session_manager.dart';
 import 'package:element_x/core/matrix/matrix_store.dart';
+import 'package:element_x/core/matrix/room_preview.dart';
 import 'package:element_x/core/matrix/matrix_models.dart';
 import 'package:element_x/features/home/models/room_filter.dart';
 import 'package:element_x/features/home/repo/home_repo.dart';
@@ -29,7 +30,7 @@ class HomeRepoImpl implements HomeRepo {
       final matchesQuery =
           needle.isEmpty ||
           room.name.toLowerCase().contains(needle) ||
-          room.lastMessage.toLowerCase().contains(needle);
+          roomPreviewText(room.lastMessage).toLowerCase().contains(needle);
       final matchesFilter = switch (filter) {
         RoomFilter.all => true,
         RoomFilter.unreads => room.unreadCount > 0,

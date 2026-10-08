@@ -2148,16 +2148,14 @@ class MatrixStore extends ChangeNotifier {
       return 'Unable to decrypt';
     }
     return switch (event.type) {
-      'm.call.invite' => _isVideoCallInvite(event)
-          ? 'preview_video_call'.tr()
-          : 'preview_voice_call'.tr(),
-      'm.call.answer' => 'preview_call_answered'.tr(),
-      'm.call.hangup' => 'preview_call_ended'.tr(),
-      'm.call.reject' => 'preview_call_declined'.tr(),
+      'm.call.invite' =>
+        _isVideoCallInvite(event) ? 'preview_video_call' : 'preview_voice_call',
+      'm.call.answer' => 'preview_call_answered',
+      'm.call.hangup' => 'preview_call_ended',
+      'm.call.reject' => 'preview_call_declined',
       'm.call.negotiate' ||
       'm.call.candidates' ||
-      'm.call.select_answer' =>
-        'preview_call_activity'.tr(),
+      'm.call.select_answer' => 'preview_call_activity',
       _ => _lastMessageBody(event),
     };
   }
@@ -2173,9 +2171,8 @@ class MatrixStore extends ChangeNotifier {
 
   String _lastMessageBody(Event event) {
     final body = event.body.trim();
-    if (body.isEmpty ||
-        body.startsWith('Unknown message format of type')) {
-      return 'preview_unsupported_event'.tr();
+    if (body.isEmpty || body.startsWith('Unknown message format of type')) {
+      return 'preview_unsupported_event';
     }
     return body;
   }

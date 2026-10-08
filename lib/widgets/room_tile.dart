@@ -1,6 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:element_x/core/matrix/matrix_error.dart';
 import 'package:element_x/core/matrix/matrix_models.dart';
+import 'package:element_x/core/matrix/room_preview.dart';
 import 'package:element_x/core/utils/formatters.dart';
 import 'package:element_x/core/utils/test_keys.dart';
 import 'package:element_x/theme/rop_theme.dart';
@@ -33,7 +34,9 @@ class RoomTile extends StatelessWidget {
       leading: UserAvatar(label: room.name),
       title: Text(room.name, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text(
-        room.lastMessage.isEmpty ? room.topic : room.lastMessage,
+        room.lastMessage.isEmpty
+            ? room.topic
+            : roomPreviewText(room.lastMessage),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
