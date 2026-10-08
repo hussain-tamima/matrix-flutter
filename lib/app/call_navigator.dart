@@ -1,17 +1,11 @@
 import 'package:element_x/core/di/di.dart';
-
-import 'package:element_x/core/matrix/matrix_models.dart';
-
 import 'package:element_x/core/matrix/matrix_store.dart';
+import 'package:element_x/features/call/cubit/call_cubit.dart';
+import 'package:element_x/features/call/view/call_overlay.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:element_x/core/routes/route_paths.dart';
-
-import 'package:flutter/widgets.dart';
-
-import 'package:go_router/go_router.dart';
-
-/// Opens the call screen for active calls and leaves it when the call ends.
-
+/// Layers call UI over the current route instead of pushing a dedicated screen.
 class CallNavigator extends StatefulWidget {
   const CallNavigator({super.key, required this.child});
 
@@ -23,86 +17,53 @@ class CallNavigator extends StatefulWidget {
 
 class _CallNavigatorState extends State<CallNavigator> {
   late final MatrixStore _store;
-
-  MatrixCall? _lastCall;
-  String? _lastError;
+  late final CallCubit _callCubit;
 
   @override
   void initState() {
     super.initState();
-
     _store = sl<MatrixStore>();
-
-    _lastCall = _store.call;
-    _lastError = _store.callError;
-
+    _callCubit = sl<CallCubit>();
     _store.addListener(_onStore);
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _syncRoute();
-      }
-    });
   }
 
   @override
   void dispose() {
     _store.removeListener(_onStore);
-
     super.dispose();
   }
 
   void _onStore() {
-    final call = _store.call;
-
-    final error = _store.callError;
-
-    final previous = _lastCall;
-
-    final previousError = _lastError;
-
-    _lastCall = call;
-
-    _lastError = error;
-
-    final becameActive = call != null && previous == null;
-
-    final statusChanged =
-        call != null && previous != null && call.status != previous.status;
-
-    final ended = previous != null && call == null;
-
-    final errorCleared = previousError != null && error == null;
-
-    if (!becameActive && !statusChanged && !ended && !errorCleared) {
-      return;
-    }
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _syncRoute();
-      }
-    });
-  }
-
-  void _syncRoute() {
-    final router = sl<GoRouter>();
-
-    final onCall = router.state.uri.path == RoutePaths.call;
-
-    final call = _store.call;
-
-    if (call != null && !onCall) {
-      router.push(RoutePaths.call);
-
-      return;
-    }
-
-    if (call == null && onCall && _store.callError == null && router.canPop()) {
-      router.pop();
+    if (mounted) {
+      setState(() {});
     }
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) {
+    final call = _store.call;
+    final error = _store.callError;
+
+    return BlocProvider.value(
+      value: _callCubit,
+      child: Stack(
+        fit: StackFit.passthrough,
+        children: [
+          widget.child,
+          if (call != null)
+            const Positioned.fill(child: CallOverlay()),
+          if (call == null && error != null)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: CallErrorBanner(
+                message: error,
+                onDismiss: _callCubit.dismissFailure,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }

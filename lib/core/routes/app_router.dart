@@ -6,8 +6,6 @@ import 'package:element_x/features/analytics/view/analytics_settings_screen.dart
 import 'package:element_x/features/announcement/cubit/announcement_cubit.dart';
 import 'package:element_x/features/cachecleaner/cubit/cachecleaner_cubit.dart';
 import 'package:element_x/features/cachecleaner/view/cachecleaner_screen.dart';
-import 'package:element_x/features/call/cubit/call_cubit.dart';
-import 'package:element_x/features/call/view/call_screen.dart';
 import 'package:element_x/features/contentscanner/cubit/contentscanner_cubit.dart';
 import 'package:element_x/features/contentscanner/view/contentscanner_screen.dart';
 import 'package:element_x/features/createroom/cubit/createroom_cubit.dart';
@@ -82,8 +80,6 @@ import 'package:element_x/features/rolesandpermissions/cubit/rolesandpermissions
 import 'package:element_x/features/rolesandpermissions/view/rolesandpermissions_screen.dart';
 import 'package:element_x/features/roomaliasresolver/cubit/roomaliasresolver_cubit.dart';
 import 'package:element_x/features/roomaliasresolver/view/roomaliasresolver_screen.dart';
-import 'package:element_x/features/roomcall/cubit/roomcall_cubit.dart';
-import 'package:element_x/features/roomcall/view/roomcall_screen.dart';
 import 'package:element_x/features/roomdetails/cubit/roomdetails_cubit.dart';
 import 'package:element_x/features/roomdetails/view/room_notification_screen.dart';
 import 'package:element_x/features/roomdetails/view/roomdetails_screen.dart';
@@ -350,11 +346,6 @@ GoRouter buildRouter(SessionManager session) {
         ),
       ),
       GoRoute(
-        path: RoutePaths.call,
-        builder: (context, state) =>
-            _bloc(() => sl<CallCubit>(), const CallScreen()),
-      ),
-      GoRoute(
         path: RoutePaths.logout,
         builder: (context, state) =>
             _bloc(() => sl<LogoutCubit>(), const LogoutScreen()),
@@ -479,10 +470,10 @@ GoRouter buildRouter(SessionManager session) {
           ),
           GoRoute(
             path: 'call',
-            builder: (context, state) => _bloc(
-              () => sl<RoomCallCubit>(param1: state.pathParameters['roomId']!),
-              const RoomCallScreen(),
-            ),
+            redirect: (context, state) {
+              final roomId = state.pathParameters['roomId']!;
+              return RoutePaths.room(roomId);
+            },
           ),
           GoRoute(
             path: 'location',

@@ -381,7 +381,7 @@ void _registerCubits() {
   sl.registerFactory(() => SecureBackupCubit(sl(), sl()));
   sl.registerFactory(() => VerifySessionCubit(sl(), sl()));
   sl.registerFactory(() => SecurityAndPrivacyCubit(sl(), sl()));
-  sl.registerFactory(() => CallCubit(sl(), sl()));
+  sl.registerLazySingleton(() => CallCubit(sl(), sl()));
   sl.registerFactoryParam<RoomCallCubit, String, Object?>(
     (roomId, _) => RoomCallCubit(sl(), roomId),
   );

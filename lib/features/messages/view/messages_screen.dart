@@ -1,5 +1,8 @@
+import 'package:element_x/core/di/di.dart';
+import 'package:element_x/core/matrix/matrix_error.dart';
 import 'package:element_x/core/matrix/matrix_models.dart';
 import 'package:element_x/core/routes/route_paths.dart';
+import 'package:element_x/features/call/repo/call_repo.dart';
 import 'package:element_x/core/utils/test_keys.dart';
 import 'package:element_x/features/messages/cubit/messages_cubit.dart';
 import 'package:element_x/theme/rop_assets.dart';
@@ -72,9 +75,14 @@ class _MessagesScreenState extends State<MessagesScreen> {
             ),
             actions: [
               IconButton(
-                tooltip: 'call'.tr(),
-                onPressed: () => context.push(RoutePaths.roomCall(room.id)),
+                tooltip: 'preview_voice_call'.tr(),
+                onPressed: () => _startCall(context, room.id, video: false),
                 icon: const Icon(Icons.call_outlined),
+              ),
+              IconButton(
+                tooltip: 'preview_video_call'.tr(),
+                onPressed: () => _startCall(context, room.id, video: true),
+                icon: const Icon(Icons.videocam_outlined),
               ),
               IconButton(
                 tooltip: 'pins'.tr(),
@@ -212,6 +220,23 @@ class _MessagesScreenState extends State<MessagesScreen> {
   void _send(String value) {
     context.read<MessagesCubit>().send(value);
     _composer.clear();
+  }
+
+  Future<void> _startCall(
+    BuildContext context,
+    String roomId, {
+    required bool video,
+  }) async {
+    try {
+      await sl<CallRepo>().start(roomId, video: video);
+    } catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(matrixError(error))),
+      );
+    }
   }
 
   Future<void> _attachments(BuildContext context) async {
