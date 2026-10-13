@@ -371,6 +371,7 @@ class MatrixCall extends Equatable {
     this.video = false,
     this.muted = false,
     this.speakerOn = true,
+    this.group = false,
   });
 
   final String roomId;
@@ -380,12 +381,14 @@ class MatrixCall extends Equatable {
   final bool video;
   final bool muted;
   final bool speakerOn;
+  final bool group;
 
   MatrixCall copyWith({
     MatrixCallStatus? status,
     bool? video,
     bool? muted,
     bool? speakerOn,
+    bool? group,
   }) {
     return MatrixCall(
       roomId: roomId,
@@ -395,6 +398,7 @@ class MatrixCall extends Equatable {
       video: video ?? this.video,
       muted: muted ?? this.muted,
       speakerOn: speakerOn ?? this.speakerOn,
+      group: group ?? this.group,
     );
   }
 
@@ -407,7 +411,44 @@ class MatrixCall extends Equatable {
     video,
     muted,
     speakerOn,
+    group,
   ];
+}
+
+class MatrixCallParticipant extends Equatable {
+  const MatrixCallParticipant({
+    required this.partyId,
+    required this.userId,
+    required this.displayName,
+    this.connected = false,
+  });
+
+  final String partyId;
+  final String userId;
+  final String displayName;
+  final bool connected;
+
+  @override
+  List<Object?> get props => [partyId, userId, displayName, connected];
+}
+
+class MatrixGroupCall extends Equatable {
+  const MatrixGroupCall({
+    required this.roomId,
+    required this.callId,
+    required this.video,
+    required this.participantCount,
+    required this.joined,
+  });
+
+  final String roomId;
+  final String callId;
+  final bool video;
+  final int participantCount;
+  final bool joined;
+
+  @override
+  List<Object?> get props => [roomId, callId, video, participantCount, joined];
 }
 
 class MatrixAnnouncement extends Equatable {

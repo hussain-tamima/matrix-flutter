@@ -5,6 +5,7 @@ import 'package:element_x/core/routes/route_paths.dart';
 import 'package:element_x/features/call/repo/call_repo.dart';
 import 'package:element_x/core/utils/test_keys.dart';
 import 'package:element_x/features/messages/cubit/messages_cubit.dart';
+import 'package:element_x/theme/app_theme.dart';
 import 'package:element_x/theme/rop_assets.dart';
 import 'package:element_x/theme/rop_spacing.dart';
 import 'package:element_x/theme/rop_theme.dart';
@@ -109,6 +110,30 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       'typing'.tr(),
                       style: Theme.of(context).textTheme.labelMedium
                           ?.copyWith(color: rop.textSecondary),
+                    ),
+                  ),
+                ),
+              if (state.groupCall != null && !state.groupCall!.joined)
+                Material(
+                  color: rop.railEnd,
+                  child: ListTile(
+                    leading: Icon(
+                      state.groupCall!.video ? Icons.videocam : Icons.call,
+                      color: AppTheme.online,
+                    ),
+                    title: Text(
+                      'call_in_progress'.tr(),
+                      style: TextStyle(color: rop.textOnPrimary),
+                    ),
+                    subtitle: Text(
+                      'call_in_progress_count'.tr(
+                        args: ['${state.groupCall!.participantCount}'],
+                      ),
+                      style: TextStyle(color: rop.railText),
+                    ),
+                    trailing: FilledButton(
+                      onPressed: () => _joinCall(context, room.id),
+                      child: Text('join_call'.tr()),
                     ),
                   ),
                 ),
@@ -235,6 +260,18 @@ class _MessagesScreenState extends State<MessagesScreen> {
   void _send(String value) {
     context.read<MessagesCubit>().send(value);
     _composer.clear();
+  }
+
+  Future<void> _joinCall(BuildContext context, String roomId) async {
+    try {
+      await sl<CallRepo>().join(roomId);
+    } catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(matrixError(error))));
+    }
   }
 
   Future<void> _startCall(

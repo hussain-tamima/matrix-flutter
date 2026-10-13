@@ -4,8 +4,12 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 
 /// Local WebRTC media for one Matrix `m.call` session.
 class MatrixCallMedia {
-  MatrixCallMedia({List<Map<String, dynamic>>? iceServers})
-    : _iceServers = iceServers ?? _defaultIceServers;
+  MatrixCallMedia({
+    List<Map<String, dynamic>>? iceServers,
+    MediaStream? sharedLocal,
+  }) : _iceServers = iceServers ?? _defaultIceServers,
+       _sharedLocal = sharedLocal,
+       _ownsLocal = sharedLocal == null;
 
   static const defaultIceServers = [
     {'urls': 'stun:stun.l.google.com:19302'},
@@ -14,6 +18,8 @@ class MatrixCallMedia {
   static const _defaultIceServers = defaultIceServers;
 
   final List<Map<String, dynamic>> _iceServers;
+  final MediaStream? _sharedLocal;
+  final bool _ownsLocal;
 
   RTCPeerConnection? _connection;
   MediaStream? _local;
@@ -40,6 +46,8 @@ class MatrixCallMedia {
 
   bool get isConnected =>
       connectionState == RTCPeerConnectionState.RTCPeerConnectionStateConnected;
+
+  bool get hasRemoteDescription => _hasRemoteDescription;
 
   Future<String> offer({
     required bool video,
@@ -116,6 +124,26 @@ class MatrixCallMedia {
     return _commitLocal(connection, description, 'Could not restart the call');
   }
 
+  /// Adds a track from the shared local capture and renegotiates.
+  Future<void> addLocalTrack(MediaStreamTrack track) async {
+    final connection = _connection;
+    final local = _local;
+    if (connection == null || local == null) {
+      return;
+    }
+    await connection.addTrack(track, local);
+  }
+
+  /// Creates a new offer after the local tracks change.
+  Future<String> renegotiateOffer() async {
+    final connection = _connection;
+    if (connection == null) {
+      throw Exception('There is no call to renegotiate');
+    }
+    final description = await connection.createOffer();
+    return _commitLocal(connection, description, 'Could not update the call');
+  }
+
   Future<void> addCandidate(RTCIceCandidate candidate) async {
     final safe = _safeCandidate(candidate);
     if (safe == null) {
@@ -155,11 +183,13 @@ class MatrixCallMedia {
     onIceConnectionState = null;
     _bindChain = null;
     _pendingRemote.clear();
-    for (final track in _local?.getTracks() ?? const <MediaStreamTrack>[]) {
-      await track.stop();
+    if (_ownsLocal) {
+      for (final track in _local?.getTracks() ?? const <MediaStreamTrack>[]) {
+        await track.stop();
+      }
+      await _local?.dispose();
+      await _upgradeCapture?.dispose();
     }
-    await _local?.dispose();
-    await _upgradeCapture?.dispose();
     _upgradeCapture = null;
     await _remote?.dispose();
     await _connection?.close();
@@ -176,10 +206,13 @@ class MatrixCallMedia {
     required void Function(RTCIceCandidate candidate) onCandidate,
     bool attachLocal = true,
   }) async {
-    _local = await navigator.mediaDevices.getUserMedia({
-      'audio': true,
-      'video': video,
-    });
+    final shared = _sharedLocal;
+    _local =
+        shared ??
+        await navigator.mediaDevices.getUserMedia({
+          'audio': true,
+          'video': video,
+        });
     _connection = await createPeerConnection({
       'iceServers': _iceServers,
       'sdpSemantics': 'unified-plan',
@@ -212,6 +245,9 @@ class MatrixCallMedia {
 
   /// Opens the camera when a renegotiation adds video to a voice answer.
   Future<void> _ensureLocalVideo() async {
+    if (!_ownsLocal) {
+      return;
+    }
     final local = _local;
     if (local == null || local.getVideoTracks().isNotEmpty) {
       return;

@@ -35,7 +35,12 @@ class MessagesCubit extends Cubit<MessagesState> {
     }
     if (room.isInvited) {
       emit(
-        MessagesState(room: room, events: const [], recording: state.recording),
+        MessagesState(
+          room: room,
+          events: const [],
+          recording: state.recording,
+          groupCall: state.groupCall,
+        ),
       );
       return;
     }
@@ -51,6 +56,7 @@ class MessagesCubit extends Cubit<MessagesState> {
         },
         typing: _repo.isTyping(roomId),
         recording: state.recording,
+        groupCall: _store.groupCallFor(roomId),
       ),
     );
   }
@@ -71,6 +77,7 @@ class MessagesCubit extends Cubit<MessagesState> {
             replyCounts: state.replyCounts,
             typing: state.typing,
             error: matrixError(error),
+            groupCall: state.groupCall,
           ),
         );
       }
@@ -173,6 +180,7 @@ class MessagesCubit extends Cubit<MessagesState> {
       typing: state.typing,
       missing: state.missing,
       recording: recording ?? state.recording,
+      groupCall: state.groupCall,
       error: error,
     );
   }

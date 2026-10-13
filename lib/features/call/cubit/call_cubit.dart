@@ -7,6 +7,7 @@ import 'package:element_x/core/matrix/matrix_store.dart';
 import 'package:element_x/features/call/repo/call_repo.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:livekit_client/livekit_client.dart' as lk;
 
 class CallCubit extends Cubit<CallState> {
   CallCubit(this._repo, this._store) : super(const CallState()) {
@@ -21,6 +22,11 @@ class CallCubit extends Cubit<CallState> {
 
   MediaStream? get localStream => _store.localCallStream;
   MediaStream? get remoteStream => _store.remoteCallStream;
+  MediaStream? remoteStreamFor(String partyId) =>
+      _store.remoteStreamFor(partyId);
+  lk.VideoTrack? get localVideoTrack => _store.localCallVideoTrack;
+  lk.VideoTrack? get remoteVideoTrack => _store.remoteCallVideoTrack;
+  lk.VideoTrack? videoTrackFor(String partyId) => _store.videoTrackFor(partyId);
 
   void load() {
     final call = _repo.current;
@@ -30,6 +36,7 @@ class CallCubit extends Cubit<CallState> {
         call: call,
         roomName: call == null ? '' : _repo.roomName(call.roomId),
         mediaGeneration: _store.callMediaGeneration,
+        participants: _repo.participants,
         error: _store.callError ?? state.error,
         answering: state.answering && stillRinging,
       ),

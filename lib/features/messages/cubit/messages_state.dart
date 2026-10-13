@@ -9,6 +9,7 @@ class MessagesState extends Equatable {
     this.typing = false,
     this.missing = false,
     this.recording = false,
+    this.groupCall,
     this.error,
   });
 
@@ -18,6 +19,7 @@ class MessagesState extends Equatable {
   final bool typing;
   final bool missing;
   final bool recording;
+  final MatrixGroupCall? groupCall;
   final String? error;
 
   @override
@@ -28,6 +30,7 @@ class MessagesState extends Equatable {
     typing,
     missing,
     recording,
+    groupCall,
     error,
   ];
 }

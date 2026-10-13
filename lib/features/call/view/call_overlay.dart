@@ -24,7 +24,6 @@ class _CallOverlayState extends State<CallOverlay> with WidgetsBindingObserver {
   final _local = RTCVideoRenderer();
   var _renderersReady = false;
   String? _remoteVideoTrackId;
-  var _remoteBindSerial = 0;
   var _minimized = false;
   Timer? _clock;
   var _handleSystemBack = true;
@@ -81,57 +80,33 @@ class _CallOverlayState extends State<CallOverlay> with WidgetsBindingObserver {
     return true;
   }
 
-  void _attach(CallCubit cubit) {
+  void _attach(CallCubit cubit, {required bool multi}) {
     if (!_renderersReady) {
       return;
     }
     _local.srcObject = cubit.localStream;
-    _scheduleRemoteVideo(cubit.remoteStream);
+    if (!multi) {
+      _scheduleRemoteVideo(cubit.remoteStream);
+    }
   }
 
   void _scheduleRemoteVideo(MediaStream? stream) {
     final track = _remoteVideoTrack(stream);
     final trackId = track?.id;
-    if (track == null || trackId == null) {
+    if (track == null) {
       if (_remoteVideoTrackId != null) {
         _remoteVideoTrackId = null;
-        _remoteBindSerial++;
         _remote.srcObject = null;
       }
       return;
     }
     track.enabled = true;
-    if (_remoteVideoTrackId == trackId) {
+    final bindId = stream?.id ?? trackId;
+    if (bindId != null && bindId.isNotEmpty && _remoteVideoTrackId == bindId) {
       return;
     }
-    final previous = _remoteVideoTrackId;
-    _remoteVideoTrackId = trackId;
-    if (previous == null) {
-      unawaited(_bindRemoteVideo(stream, trackId));
-      return;
-    }
-    final serial = ++_remoteBindSerial;
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted || serial != _remoteBindSerial) {
-        return;
-      }
-      try {
-        await _remote.setSrcObject(stream: null);
-        if (!mounted || serial != _remoteBindSerial) {
-          return;
-        }
-        await _remote.setSrcObject(stream: stream, trackId: trackId);
-      } catch (_) {}
-      if (mounted && serial == _remoteBindSerial) {
-        setState(() {});
-      }
-    });
-  }
-
-  Future<void> _bindRemoteVideo(MediaStream? stream, String trackId) async {
-    try {
-      await _remote.setSrcObject(stream: stream, trackId: trackId);
-    } catch (_) {}
+    _remoteVideoTrackId = bindId;
+    _remote.srcObject = stream;
   }
 
   MediaStreamTrack? _remoteVideoTrack(MediaStream? stream) {
@@ -179,7 +154,8 @@ class _CallOverlayState extends State<CallOverlay> with WidgetsBindingObserver {
           return const SizedBox.shrink();
         }
         final cubit = context.read<CallCubit>();
-        _attach(cubit);
+        final multi = state.participants.length > 1;
+        _attach(cubit, multi: multi);
         _syncClock(call);
 
         final incoming = call.status == MatrixCallStatus.incoming;
@@ -207,9 +183,11 @@ class _CallOverlayState extends State<CallOverlay> with WidgetsBindingObserver {
               if (incoming)
                 _incomingScreen(context, cubit, state, call)
               else if (_minimized)
-                _minimizedCall(context, cubit, state, call)
+                multi
+                    ? _voiceBar(context, cubit, state, call)
+                    : _minimizedCall(context, cubit, state, call)
               else
-                _fullScreen(context, cubit, state, call),
+                _fullScreen(context, cubit, state, call, multi: multi),
             ],
           ),
         );
@@ -219,6 +197,42 @@ class _CallOverlayState extends State<CallOverlay> with WidgetsBindingObserver {
 
   bool _hasRemoteVideo(CallCubit cubit) {
     return _remoteVideoTrack(cubit.remoteStream) != null;
+  }
+
+  Widget _cameraView({required bool local}) {
+    return RTCVideoView(
+      local ? _local : _remote,
+      mirror: local,
+      objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+    );
+  }
+
+  Widget _participantGrid(
+    BuildContext context,
+    CallCubit cubit,
+    CallState state,
+  ) {
+    final people = state.participants;
+    return GridView.builder(
+      padding: const EdgeInsets.fromLTRB(RopSpacing.sm, 72, RopSpacing.sm, 168),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: people.length <= 2 ? 1 : 2,
+        mainAxisSpacing: RopSpacing.sm,
+        crossAxisSpacing: RopSpacing.sm,
+        childAspectRatio: people.length <= 2 ? 1.15 : 0.75,
+      ),
+      itemCount: people.length,
+      itemBuilder: (context, index) {
+        final person = people[index];
+        return _ParticipantTile(
+          key: ValueKey(person.partyId),
+          name: person.displayName,
+          stream: cubit.remoteStreamFor(person.partyId),
+          connected: person.connected,
+          generation: state.mediaGeneration,
+        );
+      },
+    );
   }
 
   Widget _incomingScreen(
@@ -304,10 +318,11 @@ class _CallOverlayState extends State<CallOverlay> with WidgetsBindingObserver {
     BuildContext context,
     CallCubit cubit,
     CallState state,
-    MatrixCall call,
-  ) {
+    MatrixCall call, {
+    required bool multi,
+  }) {
     final rop = RopTheme.of(context);
-    final showRemote = _renderersReady && _hasRemoteVideo(cubit);
+    final showRemote = !multi && _renderersReady && _hasRemoteVideo(cubit);
     final showLocal = call.video && _renderersReady;
 
     return Positioned.fill(
@@ -316,11 +331,10 @@ class _CallOverlayState extends State<CallOverlay> with WidgetsBindingObserver {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            if (showRemote)
-              RTCVideoView(
-                _remote,
-                objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-              )
+            if (multi)
+              _participantGrid(context, cubit, state)
+            else if (showRemote)
+              _cameraView(local: false)
             else
               Center(
                 child: Column(
@@ -328,11 +342,11 @@ class _CallOverlayState extends State<CallOverlay> with WidgetsBindingObserver {
                   children: [
                     _avatar(call, rop, radius: 56),
                     const SizedBox(height: RopSpacing.lg),
-                    Text(
+                    _roomName(
+                      context,
                       state.roomName,
-                      style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(color: rop.textOnPrimary),
-                      textAlign: TextAlign.center,
+                      compact: call.group,
+                      onVideo: false,
                     ),
                     const SizedBox(height: RopSpacing.xs),
                     Text(
@@ -376,18 +390,15 @@ class _CallOverlayState extends State<CallOverlay> with WidgetsBindingObserver {
                           onPressed: _minimize,
                         ),
                         Expanded(
-                          child: showRemote
+                          child: showRemote || call.group
                               ? Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text(
+                                    _roomName(
+                                      context,
                                       state.roomName,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium
-                                          ?.copyWith(color: Colors.white),
+                                      compact: call.group,
+                                      onVideo: true,
                                     ),
                                     Text(
                                       _subtitle(call),
@@ -478,12 +489,7 @@ class _CallOverlayState extends State<CallOverlay> with WidgetsBindingObserver {
                     height: 148,
                     child: ColoredBox(
                       color: Colors.black,
-                      child: RTCVideoView(
-                        _local,
-                        mirror: true,
-                        objectFit:
-                            RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-                      ),
+                      child: _cameraView(local: true),
                     ),
                   ),
                 ),
@@ -635,10 +641,7 @@ class _CallOverlayState extends State<CallOverlay> with WidgetsBindingObserver {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              RTCVideoView(
-                _remote,
-                objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-              ),
+              _cameraView(local: false),
               const DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -839,6 +842,30 @@ class _CallOverlayState extends State<CallOverlay> with WidgetsBindingObserver {
     );
   }
 
+  Widget _roomName(
+    BuildContext context,
+    String name, {
+    required bool compact,
+    required bool onVideo,
+  }) {
+    final color = onVideo ? Colors.white : RopTheme.of(context).textOnPrimary;
+    final style = compact
+        ? Theme.of(context).textTheme.titleSmall?.copyWith(color: color)
+        : onVideo
+        ? Theme.of(context).textTheme.titleMedium?.copyWith(color: color)
+        : Theme.of(context).textTheme.headlineSmall?.copyWith(color: color);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: RopSpacing.lg),
+      child: Text(
+        name,
+        maxLines: compact || onVideo ? 1 : null,
+        overflow: compact || onVideo ? TextOverflow.ellipsis : null,
+        textAlign: TextAlign.center,
+        style: style,
+      ),
+    );
+  }
+
   String _subtitle(MatrixCall call) {
     final status = _statusLabel(call);
     if (call.status != MatrixCallStatus.connected) {
@@ -862,11 +889,165 @@ class _CallOverlayState extends State<CallOverlay> with WidgetsBindingObserver {
     return switch (call.status) {
       MatrixCallStatus.incoming =>
         (call.video ? 'incoming_video_call' : 'incoming_voice_call').tr(),
-      MatrixCallStatus.outgoing => 'call_status_calling'.tr(),
+      MatrixCallStatus.outgoing =>
+        call.group ? 'call_waiting'.tr() : 'call_status_calling'.tr(),
       MatrixCallStatus.connecting => 'call_status_connecting'.tr(),
       MatrixCallStatus.connected =>
         call.muted ? 'call_status_muted'.tr() : 'call_status_connected'.tr(),
     };
+  }
+}
+
+class _ParticipantTile extends StatefulWidget {
+  const _ParticipantTile({
+    super.key,
+    required this.name,
+    required this.stream,
+    required this.connected,
+    required this.generation,
+  });
+
+  final String name;
+  final MediaStream? stream;
+  final bool connected;
+  final int generation;
+
+  @override
+  State<_ParticipantTile> createState() => _ParticipantTileState();
+}
+
+class _ParticipantTileState extends State<_ParticipantTile> {
+  final _renderer = RTCVideoRenderer();
+  var _ready = false;
+  String? _trackId;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_prepare());
+  }
+
+  Future<void> _prepare() async {
+    try {
+      await _renderer.initialize();
+    } catch (_) {}
+    if (!mounted) {
+      return;
+    }
+    setState(() => _ready = true);
+    await _bind();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ParticipantTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.stream != widget.stream ||
+        oldWidget.generation != widget.generation) {
+      unawaited(_bind());
+    }
+  }
+
+  Future<void> _bind() async {
+    if (!_ready) {
+      return;
+    }
+    final tracks =
+        widget.stream?.getVideoTracks() ?? const <MediaStreamTrack>[];
+    final track = tracks.isEmpty ? null : tracks.first;
+    final trackId = track?.id;
+    if (track == null) {
+      if (_trackId != null) {
+        _trackId = null;
+        _renderer.srcObject = null;
+        if (mounted) {
+          setState(() {});
+        }
+      }
+      return;
+    }
+    track.enabled = true;
+    final bindId = widget.stream?.id ?? trackId;
+    if (bindId != null && bindId.isNotEmpty && _trackId == bindId) {
+      return;
+    }
+    _trackId = bindId;
+    _renderer.srcObject = widget.stream;
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
+  void dispose() {
+    _renderer.srcObject = null;
+    unawaited(_renderer.dispose());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = widget.name.isEmpty
+        ? '?'
+        : widget.name.substring(0, 1).toUpperCase();
+    final label = widget.connected
+        ? widget.name
+        : '${widget.name} · ${'call_status_connecting'.tr()}';
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: ColoredBox(
+        color: Colors.black,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (_ready && _trackId != null)
+              RTCVideoView(
+                _renderer,
+                objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+              )
+            else
+              Center(
+                child: CircleAvatar(
+                  radius: 28,
+                  backgroundColor: Colors.white.withValues(alpha: 0.16),
+                  child: Text(
+                    initial,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            Align(
+              alignment: AlignmentDirectional.bottomStart,
+              child: DecoratedBox(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [Color(0xCC000000), Color(0x00000000)],
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(RopSpacing.sm),
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

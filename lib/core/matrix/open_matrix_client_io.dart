@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:element_x/core/config/app_config.dart';
+import 'package:element_x/core/matrix/group_call_events.dart';
 import 'package:element_x/core/matrix/matrix_client_handle.dart';
 import 'package:element_x/core/matrix/stale_room.dart';
 import 'package:element_x/core/utils/test_env_stub.dart'
@@ -42,6 +43,11 @@ Future<MatrixClientHandle> openMatrixClient({bool inMemory = false}) async {
     sqfliteFactory: factory,
   );
   final client = Client(AppConfig.deviceDisplayName, database: sdkDatabase);
+  client.importantStateEvents.addAll([
+    groupCallEventType,
+    groupCallMemberEventType,
+    matrixRtcMemberEventType,
+  ]);
   await client.init(waitForFirstSync: false);
   attachStaleRoomCleanup(client);
   return MatrixClientHandle(client, databasePath: inMemory ? null : path);

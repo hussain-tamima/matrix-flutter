@@ -11,11 +11,20 @@ class CallRepoImpl implements CallRepo {
   MatrixCall? get current => _store.call;
 
   @override
+  List<MatrixCallParticipant> get participants => _store.callParticipants;
+
+  @override
+  MatrixGroupCall? groupCallIn(String roomId) => _store.groupCallFor(roomId);
+
+  @override
   String roomName(String roomId) => _store.roomById(roomId)?.name ?? roomId;
 
   @override
   Future<void> start(String roomId, {bool video = false}) =>
       _store.startCall(roomId, video: video);
+
+  @override
+  Future<void> join(String roomId) => _store.joinGroupCall(roomId);
 
   @override
   Future<void> answer() => _store.answerCall();

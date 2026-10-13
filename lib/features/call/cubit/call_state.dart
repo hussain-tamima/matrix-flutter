@@ -6,6 +6,7 @@ class CallState extends Equatable {
     this.call,
     this.roomName = '',
     this.mediaGeneration = 0,
+    this.participants = const [],
     this.error,
     this.answering = false,
   });
@@ -13,6 +14,7 @@ class CallState extends Equatable {
   final MatrixCall? call;
   final String roomName;
   final int mediaGeneration;
+  final List<MatrixCallParticipant> participants;
   final String? error;
   final bool answering;
 
@@ -20,6 +22,7 @@ class CallState extends Equatable {
     MatrixCall? call,
     String? roomName,
     int? mediaGeneration,
+    List<MatrixCallParticipant>? participants,
     String? error,
     bool clearError = false,
     bool? answering,
@@ -28,6 +31,7 @@ class CallState extends Equatable {
       call: call ?? this.call,
       roomName: roomName ?? this.roomName,
       mediaGeneration: mediaGeneration ?? this.mediaGeneration,
+      participants: participants ?? this.participants,
       error: clearError ? null : (error ?? this.error),
       answering: answering ?? this.answering,
     );
@@ -38,6 +42,7 @@ class CallState extends Equatable {
     call,
     roomName,
     mediaGeneration,
+    participants,
     error,
     answering,
   ];

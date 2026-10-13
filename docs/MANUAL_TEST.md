@@ -31,6 +31,10 @@
 
 - [ ] Outbound voice/video from room call screen; call UI opens if you navigate away
 - [ ] Incoming call opens call screen while app is foregrounded
+- [ ] Group room (3 people): everyone with the app open sees the call, all three can stay in it, and one person leaving does not end it for the others
+- [ ] After declining, the room still shows Join until the call ends
+- [ ] A fifth person sees "This call is full"
+- [ ] Direct chat stays a one-to-one call
 - [ ] Two clients on same homeserver; verify audio (TURN from `/voip/turnServer` when available)
 - [ ] Encrypted DM: note any decrypt/call limitations
 - [ ] Background incoming ring: **not** supported without push (see below)
