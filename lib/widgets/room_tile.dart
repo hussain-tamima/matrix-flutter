@@ -40,7 +40,9 @@ class RoomTile extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      trailing: IntrinsicWidth(
+      trailing: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: AlignmentDirectional.centerEnd,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
@@ -48,6 +50,7 @@ class RoomTile extends StatelessWidget {
           children: [
             Text(
               formatTime(room.lastActivity),
+              maxLines: 1,
               style: Theme.of(context).textTheme.labelSmall,
             ),
             if (room.unreadCount > 0) ...[
