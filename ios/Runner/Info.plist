@@ -63,8 +63,20 @@
 	<string>Royal Oman Police uses the camera for photos and video calls.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Royal Oman Police uses the microphone for voice messages and calls.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Royal Oman Police uses your photo library when you send a photo.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Royal Oman Police uses your location when you share it in a room.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Royal Oman Police uses Bluetooth so calls can play through a headset.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Royal Oman Police uses Bluetooth so calls can play through a headset.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Royal Oman Police uses the local network so calls can connect to people on the same Wi-Fi.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
