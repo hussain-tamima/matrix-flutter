@@ -215,6 +215,33 @@ class LivekitRoomCall {
     _refresh();
   }
 
+  Future<void> switchCamera() async {
+    final participant = _room?.localParticipant;
+    if (participant == null) {
+      return;
+    }
+    lk.LocalVideoTrack? cameraTrack;
+    for (final publication in participant.videoTrackPublications) {
+      if (publication.source != lk.TrackSource.camera) {
+        continue;
+      }
+      final track = publication.track;
+      if (track is lk.LocalVideoTrack) {
+        cameraTrack = track;
+        break;
+      }
+    }
+    if (cameraTrack == null) {
+      return;
+    }
+    final options = cameraTrack.currentOptions;
+    if (options is! lk.CameraCaptureOptions) {
+      return;
+    }
+    await cameraTrack.setCameraPosition(options.cameraPosition.switched());
+    _refresh();
+  }
+
   Future<void> dispose() async {
     if (_disposed) {
       return;

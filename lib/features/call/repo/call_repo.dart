@@ -10,5 +10,6 @@ abstract class CallRepo {
   Future<void> answer();
   Future<void> reject();
   void update(MatrixCall call);
+  Future<void> switchCamera();
   Future<void> end();
 }

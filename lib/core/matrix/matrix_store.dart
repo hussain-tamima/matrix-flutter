@@ -1226,6 +1226,31 @@ class MatrixStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> switchCallCamera() async {
+    if (_groupSession) {
+      final session = _elementCall;
+      if (session != null) {
+        await session.switchCamera();
+        _touchCallMedia();
+        notifyListeners();
+        return;
+      }
+      final local = _groupLocal;
+      final track = local?.getVideoTracks().firstOrNull;
+      if (track != null && local != null) {
+        try {
+          await Helper.switchCamera(track, null, local);
+        } catch (_) {}
+        _touchCallMedia();
+        notifyListeners();
+      }
+      return;
+    }
+    await _callMedia?.switchCamera();
+    _touchCallMedia();
+    notifyListeners();
+  }
+
   Future<void> endCall() => _finishCall();
 
   Future<void> clearCache() async {

@@ -36,5 +36,8 @@ class CallRepoImpl implements CallRepo {
   void update(MatrixCall call) => _store.updateCall(call);
 
   @override
+  Future<void> switchCamera() => _store.switchCallCamera();
+
+  @override
   Future<void> end() => _store.endCall();
 }

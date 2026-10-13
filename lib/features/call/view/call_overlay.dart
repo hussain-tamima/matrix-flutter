@@ -10,6 +10,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:livekit_client/livekit_client.dart' as lk;
 
 /// In-app call UI. Calls open full screen; minimize shrinks them to a bar or PiP.
 class CallOverlay extends StatefulWidget {
@@ -28,6 +29,7 @@ class _CallOverlayState extends State<CallOverlay> with WidgetsBindingObserver {
   Timer? _clock;
   var _handleSystemBack = true;
   VoidCallback? _onSystemBack;
+  var _mirrorLocal = true;
 
   @override
   void initState() {
@@ -85,9 +87,52 @@ class _CallOverlayState extends State<CallOverlay> with WidgetsBindingObserver {
       return;
     }
     _local.srcObject = cubit.localStream;
+    unawaited(_syncLocalMirror(cubit));
     if (!multi) {
       _scheduleRemoteVideo(cubit.remoteStream);
     }
+  }
+
+  Future<void> _syncLocalMirror(CallCubit cubit) async {
+    final livekit = cubit.localVideoTrack;
+    if (livekit is lk.LocalVideoTrack) {
+      final options = livekit.currentOptions;
+      if (options is lk.CameraCaptureOptions && mounted) {
+        setState(
+          () => _mirrorLocal = options.cameraPosition == lk.CameraPosition.front,
+        );
+      }
+      return;
+    }
+    final track = cubit.localStream?.getVideoTracks().firstOrNull;
+    if (track == null) {
+      return;
+    }
+    try {
+      final settings = track.getSettings();
+      final facing = settings['facingMode'];
+      if (facing is String && mounted) {
+        setState(() => _mirrorLocal = facing == 'user');
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _switchCamera(CallCubit cubit) async {
+    await cubit.switchCamera();
+    if (mounted) {
+      await _syncLocalMirror(cubit);
+      setState(() {});
+    }
+  }
+
+  bool _showSwitchCamera(MatrixCall call) {
+    if (!call.video) {
+      return false;
+    }
+    return switch (call.status) {
+      MatrixCallStatus.connecting || MatrixCallStatus.connected => true,
+      _ => false,
+    };
   }
 
   void _scheduleRemoteVideo(MediaStream? stream) {
@@ -202,7 +247,7 @@ class _CallOverlayState extends State<CallOverlay> with WidgetsBindingObserver {
   Widget _cameraView({required bool local}) {
     return RTCVideoView(
       local ? _local : _remote,
-      mirror: local,
+      mirror: local && _mirrorLocal,
       objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
     );
   }
@@ -464,6 +509,14 @@ class _CallOverlayState extends State<CallOverlay> with WidgetsBindingObserver {
                             onPressed: () => cubit.setVideo(!call.video),
                           ),
                         ),
+                        if (_showSwitchCamera(call))
+                          Expanded(
+                            child: _dockButton(
+                              label: 'switch_camera'.tr(),
+                              icon: Icons.cameraswitch,
+                              onPressed: () => unawaited(_switchCamera(cubit)),
+                            ),
+                          ),
                         Expanded(
                           child: _dockButton(
                             label: 'hang_up'.tr(),
@@ -489,7 +542,33 @@ class _CallOverlayState extends State<CallOverlay> with WidgetsBindingObserver {
                     height: 148,
                     child: ColoredBox(
                       color: Colors.black,
-                      child: _cameraView(local: true),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          _cameraView(local: true),
+                          if (_showSwitchCamera(call))
+                            Align(
+                              alignment: AlignmentDirectional.topEnd,
+                              child: Padding(
+                                padding: const EdgeInsets.all(4),
+                                child: Material(
+                                  color: Colors.black54,
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: IconButton(
+                                    tooltip: 'switch_camera'.tr(),
+                                    icon: const Icon(
+                                      Icons.cameraswitch,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                    onPressed: () =>
+                                        unawaited(_switchCamera(cubit)),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

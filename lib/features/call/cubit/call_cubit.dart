@@ -81,6 +81,8 @@ class CallCubit extends Cubit<CallState> {
     _repo.update(call.copyWith(speakerOn: speaker));
   }
 
+  Future<void> switchCamera() => _repo.switchCamera();
+
   Future<void> reject() => _repo.reject();
 
   void end() => _repo.end();

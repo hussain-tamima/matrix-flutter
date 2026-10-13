@@ -177,6 +177,17 @@ class MatrixCallMedia {
     } catch (_) {}
   }
 
+  Future<void> switchCamera() async {
+    final tracks = _local?.getVideoTracks() ?? const <MediaStreamTrack>[];
+    if (tracks.isEmpty) {
+      return;
+    }
+    try {
+      await Helper.switchCamera(tracks.first, null, _local);
+      onStreamsChanged?.call();
+    } catch (_) {}
+  }
+
   Future<void> dispose() async {
     onStreamsChanged = null;
     onConnectionState = null;
