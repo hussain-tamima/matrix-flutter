@@ -554,15 +554,18 @@ class _CallOverlayState extends State<CallOverlay> with WidgetsBindingObserver {
                                 child: Material(
                                   color: Colors.black54,
                                   borderRadius: BorderRadius.circular(20),
-                                  child: IconButton(
-                                    tooltip: 'switch_camera'.tr(),
-                                    icon: const Icon(
-                                      Icons.cameraswitch,
-                                      color: Colors.white,
-                                      size: 20,
+                                  child: Semantics(
+                                    label: 'switch_camera'.tr(),
+                                    button: true,
+                                    child: IconButton(
+                                      icon: const Icon(
+                                        Icons.cameraswitch,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                      onPressed: () =>
+                                          unawaited(_switchCamera(cubit)),
                                     ),
-                                    onPressed: () =>
-                                        unawaited(_switchCamera(cubit)),
                                   ),
                                 ),
                               ),

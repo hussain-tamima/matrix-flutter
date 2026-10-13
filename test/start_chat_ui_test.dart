@@ -1,4 +1,5 @@
 import 'package:easy_localization/easy_localization.dart';
+import 'package:element_x/core/config/app_config.dart';
 import 'package:element_x/core/di/di.dart';
 import 'package:element_x/core/local_storage/session_store.dart';
 import 'package:element_x/features/createroom/cubit/createroom_cubit.dart';
@@ -94,10 +95,18 @@ void main() {
       findsOneWidget,
     );
 
+    await tester.enterText(find.byType(TextField), 'ada');
+    await tester.pump();
+    expect(find.text('Message this ID'), findsOneWidget);
+    expect(
+      find.text('@ada:${AppConfig.defaultHomeserver}'),
+      findsOneWidget,
+    );
+    expect(find.text('New room'), findsNothing);
+
     await tester.enterText(find.byType(TextField), '@ada:example.org');
     await tester.pump();
     expect(find.text('Message this ID'), findsOneWidget);
-    expect(find.text('New room'), findsNothing);
 
     await tester.enterText(find.byType(TextField), '#ops:example.org');
     await tester.pump();

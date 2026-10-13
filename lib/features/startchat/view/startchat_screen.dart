@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:element_x/core/matrix/matrix_error.dart';
 import 'package:element_x/core/matrix/matrix_models.dart';
 import 'package:element_x/core/routes/route_paths.dart';
+import 'package:element_x/core/utils/matrix_user_ids.dart';
 import 'package:element_x/features/startchat/cubit/startchat_cubit.dart';
 import 'package:element_x/theme/rop_spacing.dart';
 import 'package:element_x/theme/rop_theme.dart';
@@ -52,7 +53,9 @@ class _StartChatScreenState extends State<StartChatScreen> {
             ),
             child: BlocBuilder<StartChatCubit, StartChatState>(
               builder: (context, state) {
+                final cubit = context.read<StartChatCubit>();
                 final query = _query.text;
+                final resolvedUserId = cubit.resolveUserId(query);
                 final people = [...state.people]
                   ..sort(
                     (a, b) => a.displayName.toLowerCase().compareTo(
@@ -63,10 +66,11 @@ class _StartChatScreenState extends State<StartChatScreen> {
                     .where((person) => _matches(person, query))
                     .toList();
                 final showDirect =
-                    _looksLikeUserId(query) &&
+                    resolvedUserId != null &&
                     !people.any(
                       (person) =>
-                          person.id.toLowerCase() == query.trim().toLowerCase(),
+                          person.id.toLowerCase() ==
+                          resolvedUserId.toLowerCase(),
                     );
                 final showJoin = _looksLikeRoomAddress(query);
                 final opening = state.openingUserId != null;
@@ -113,8 +117,9 @@ class _StartChatScreenState extends State<StartChatScreen> {
                       ),
                       onChanged: _onQueryChanged,
                       onSubmitted: (value) {
-                        if (_looksLikeUserId(value)) {
-                          context.read<StartChatCubit>().open(value);
+                        final resolved = cubit.resolveUserId(value);
+                        if (resolved != null) {
+                          cubit.open(value);
                         }
                       },
                     ),
@@ -158,11 +163,10 @@ class _StartChatScreenState extends State<StartChatScreen> {
                       const SizedBox(height: RopSpacing.md),
                       if (showDirect)
                         _DirectRow(
-                          userId: query.trim(),
-                          opening: state.openingUserId == query.trim(),
+                          userId: resolvedUserId!,
+                          opening: state.openingUserId == resolvedUserId,
                           enabled: !opening,
-                          onTap: () =>
-                              context.read<StartChatCubit>().open(query),
+                          onTap: () => cubit.open(query),
                         ),
                       if (showJoin)
                         GroupedSurface(
@@ -238,12 +242,10 @@ class _StartChatScreenState extends State<StartChatScreen> {
 bool _matches(MatrixUser person, String query) {
   final needle = query.trim().toLowerCase();
   if (needle.isEmpty) return true;
+  final localpart = matrixUserLocalpart(person.id).toLowerCase();
   return person.displayName.toLowerCase().contains(needle) ||
-      person.id.toLowerCase().contains(needle);
-}
-
-bool _looksLikeUserId(String value) {
-  return RegExp(r'^@[^\s:]+:[^\s]+$').hasMatch(value.trim());
+      person.id.toLowerCase().contains(needle) ||
+      localpart.contains(needle);
 }
 
 bool _looksLikeRoomAddress(String value) {

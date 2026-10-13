@@ -2,6 +2,7 @@ import 'package:element_x/features/startchat/cubit/startchat_state.dart';
 export 'package:element_x/features/startchat/cubit/startchat_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:element_x/core/matrix/matrix_error.dart';
+import 'package:element_x/core/utils/matrix_user_ids.dart';
 import 'package:element_x/features/startchat/repo/startchat_repo.dart';
 
 class StartChatCubit extends Cubit<StartChatState> {
@@ -9,8 +10,15 @@ class StartChatCubit extends Cubit<StartChatState> {
 
   final StartChatRepo _repo;
 
+  String get homeserver => _repo.homeserver;
+
+  String? resolveUserId(String input) => resolveMatrixUserId(
+    input,
+    defaultHomeserver: _repo.homeserver,
+  );
+
   Future<void> open(String userId) async {
-    final id = userId.trim();
+    final id = resolveUserId(userId) ?? userId.trim();
     if (state.openingUserId != null) return;
     if (id.isEmpty) {
       emit(state.copyWith(error: 'start_chat_id_required', clearOpening: true));

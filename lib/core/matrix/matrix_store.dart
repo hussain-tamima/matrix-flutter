@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:element_x/core/config/app_config.dart';
+import 'package:element_x/core/utils/matrix_user_ids.dart';
 import 'package:element_x/core/local_storage/session_store.dart';
 import 'package:element_x/core/matrix/group_call_events.dart';
 import 'package:element_x/core/matrix/livekit_room_call.dart';
@@ -788,10 +789,14 @@ class MatrixStore extends ChangeNotifier {
   }
 
   Future<String> ensureDirectChat(String userId) async {
-    if (!userId.isValidMatrixIdStrict()) {
+    final resolved = resolveMatrixUserId(
+      userId,
+      defaultHomeserver: defaultUserHomeserver(this),
+    );
+    if (resolved == null || !resolved.isValidMatrixIdStrict()) {
       throw Exception('Enter a full Matrix ID, like @name:server');
     }
-    final roomId = await client.startDirectChat(userId);
+    final roomId = await client.startDirectChat(resolved);
     _rebuildRooms();
     notifyListeners();
     return roomId;
@@ -864,10 +869,14 @@ class MatrixStore extends ChangeNotifier {
   }
 
   Future<void> invite(String roomId, String userId) async {
-    if (!userId.isValidMatrixIdStrict()) {
+    final resolved = resolveMatrixUserId(
+      userId,
+      defaultHomeserver: defaultUserHomeserver(this),
+    );
+    if (resolved == null || !resolved.isValidMatrixIdStrict()) {
       throw Exception('Enter a full Matrix ID, like @name:server');
     }
-    await _requireRoom(roomId).invite(userId);
+    await _requireRoom(roomId).invite(resolved);
     await ensureMembers(roomId);
   }
 

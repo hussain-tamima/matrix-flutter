@@ -1,11 +1,15 @@
 import 'package:element_x/core/matrix/matrix_store.dart';
 import 'package:element_x/core/matrix/matrix_models.dart';
+import 'package:element_x/core/utils/matrix_user_ids.dart';
 import 'package:element_x/features/startchat/repo/startchat_repo.dart';
 
 class StartChatRepoImpl implements StartChatRepo {
   StartChatRepoImpl(this._store);
 
   final MatrixStore _store;
+
+  @override
+  String get homeserver => defaultUserHomeserver(_store);
 
   @override
   List<MatrixUser> people() {
